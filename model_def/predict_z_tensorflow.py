@@ -18,11 +18,6 @@ class PREDICT_Z(object):
 				 batch_size=64, sample_num = 64, output_height=64, output_width=64,
 				 z_dim=128, pf_dim=128, c_dim=3, dataset_name='default',
 				 input_fname_pattern='*.jpg', checkpoint_dir=None, sample_dir=None):
-		"""
-
-		Symmetric to generator
-
-		"""
 		self.sess = sess
 		self.dcgan = dcgan
 		self.dcgan_sess = dcgan_sess
@@ -49,7 +44,6 @@ class PREDICT_Z(object):
 		self.input_fname_pattern = input_fname_pattern
 		self.checkpoint_dir = checkpoint_dir
 		self.c_dim = c_dim
-		self.z_init = None
 
 		self.build_model()
 
@@ -63,8 +57,8 @@ class PREDICT_Z(object):
 		self.target = tf.placeholder(tf.float32, [self.batch_size] + image_dims, name='target_image')
 		self.originZ = tf.placeholder(tf.float32, [self.batch_size, self.z_dim], name='origin_z')
 
-		self.prediction = self.predictor(self.target, self.targetZ)
-		self.sampler = self.sampler(self.target, self.targetZ)
+		self.prediction = self.predictor(self.target)
+		self.sampler = self.sampler(self.target)
 
 		self.p_loss = tf.reduce_mean(tf.abs(self.targetZ - self.prediction))
 		self.p_loss_single = tf.reduce_mean(tf.abs(self.targetZ - self.originZ), axis = 1)
@@ -100,7 +94,7 @@ class PREDICT_Z(object):
 			print("Epoch: [%2d] time: %4.4f, p_loss: %.8f" % (epoch, time.time() - start_time, errP))
 
 			if np.mod(counter, 100) == 1:
-				outputs = self.sess.run(self.sampler, feed_dict={ self.target: samples , self.targetZ : z_sample })
+				outputs = self.sess.run(self.sampler, feed_dict={ self.target: samples })
 				samples2 = self.dcgan_sess.run(self.dcgan.sampler, feed_dict={self.dcgan.z: outputs})
 				save_images(samples, image_manifold_size(samples.shape[0]),
 							'./{}/trainz_{:02d}_{:04d}_1.png'.format(config.sample_dir, int(epoch/1000), epoch%1000))
@@ -110,52 +104,33 @@ class PREDICT_Z(object):
 			if np.mod(counter, 500) == 2:
 				self.save(self.checkpoint_dir, counter)
 
-	def initialize(self, z0):
-		self.z_init = z0
+	def invert(self, targetimage, n_sigma):
+		#predict_z
+		targetimage = (targetimage/127.5-1).astype(np.float32)
+		sample = np.reshape(targetimage, (1,self.input_height,self.input_width,3))
+		output = self.sess.run(self.sampler, feed_dict={ self.target: sample })
 
-	def invert(self, constraints):
-		mask = cv2.bitwise_not(constraints[1])
-		const = constraints[0]
-
-		batch_size = self.z_init.shape[0]
-		z_sample = self.z_init 
-		samples = self.dcgan_sess.run(self.dcgan.sampler, feed_dict={self.dcgan.z: z_sample})
-		samples = ((samples+1)*127.5).astype(np.uint8)
+		#noise
+		output = np.reshape(output, self.z_dim)
+		origins = np.tile(output, [self.dcgan.batch_size, 1])
+		output_r = np.random.uniform(-1.0, 1.0, size=(self.dcgan.batch_size, self.z_dim)) * n_sigma
+		outputs = np.clip(origins + output_r, -0.99, 0.99)
 		
-		#save_images(samples, image_manifold_size(samples.shape[0]), "x1.png")
-		
-		#here I just stack the colored stroke directly on the original image
-		#uncomment 'save_images' to see what's happenning.
-		for i in range(batch_size):
-			samples[i] = cv2.bitwise_or(samples[i], const, mask=mask)
-			samples[i] = cv2.bitwise_or(samples[i], const)
-		
-		#save_images(samples, image_manifold_size(samples.shape[0]), "x2.png")
-		
-		samples = samples.astype(np.float32)/127.5 - 1.0
-
-		outputs = self.sess.run(self.sampler, feed_dict={ self.target: samples , self.targetZ : z_sample })
+		#generate images
 		samples2 = self.dcgan_sess.run(self.dcgan.sampler, feed_dict={self.dcgan.z: outputs})
-		errP = self.p_loss_single.eval({ self.targetZ : outputs, self.originZ : self.z_init }, session = self.sess)
+		errP = np.mean(np.abs(outputs - origins), axis = 1)
 		
-		#print (z.shape)
-		#print (samples.shape)
-		#print (outputs.shape)
-		#print (samples2.shape)
-		#print (errP.shape)
-		#save_images((((samples2+1)*127.5).astype(np.uint8)), image_manifold_size(samples2.shape[0]), "x3.png")
-		
-		return ((samples2+1)*127.5).astype(np.uint8), outputs, errP
+		return output,origins,((samples2+1)*127.5).astype(np.uint8), outputs, errP
 		
 	def gen_samples(self, z0):
-		size = z0.shape[0]
-		z1 = np.zeros((self.batch_size - size,self.z_dim), np.float32)
-		z0 = np.concatenate((z0,z1),axis=0)
+		#size = z0.shape[0]
+		#z1 = np.zeros((self.batch_size - size,self.z_dim), np.float32)
+		#z0 = np.concatenate((z0,z1),axis=0)
 		samples = self.dcgan_sess.run(self.dcgan.sampler, feed_dict={self.dcgan.z: z0})
-		return ((samples[0:size]+1)*127.5).astype(np.uint8)
-		
+		return ((samples+1)*127.5).astype(np.uint8)
 
-	def predictor(self, target, targetz):
+
+	def predictor(self, target):
 		with tf.variable_scope("predictor") as scope:
 
 			h0 = lrelu(self.p_bn0(conv2d(target, self.pf_dim, name='p_h0_conv')))
@@ -166,7 +141,7 @@ class PREDICT_Z(object):
 
 			return h4
 			
-	def sampler(self, target, targetz):
+	def sampler(self, target):
 		with tf.variable_scope("predictor") as scope:
 			scope.reuse_variables()
 

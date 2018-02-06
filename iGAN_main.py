@@ -18,7 +18,7 @@ def parse_args():
 	parser.add_argument('--model_name', dest='model_name', help='the model name', default='shoes64', type=str)
 	parser.add_argument('--win_size', dest='win_size', help='the size of the main window', type=int, default=384)
 	parser.add_argument('--image_size', dest='image_size', help='The size of the output images to produce', type=int, default=64)
-	parser.add_argument('--batch_size', dest='batch_size', help='the number of random initializations', type=int, default=64)
+	parser.add_argument('--batch_size', dest='batch_size', help='the number of random initializations', type=int, default=16)
 	parser.add_argument('--dimz', dest='dimz', help='Size of latent vector z', type=int, default=128)
 	parser.add_argument('--n_iters', dest='n_iters', help='the number of total optimization iterations', type=int, default=5)
 	parser.add_argument('--top_k', dest='top_k', help='the number of the thumbnail results being displayed', type=int, default=16)
@@ -26,8 +26,6 @@ def parse_args():
 	parser.add_argument('--checkpoint', dest='checkpoint', help='the file that stores the generative model', type=str, default=None)
 	#parser.add_argument('--d_weight', dest='d_weight', help='captures the visual realism based on GAN discriminator', type=float, default=0.0)
 	parser.add_argument('--interp', dest='interp', help='the interpolation method (linear or slerp)', type=str, default='linear')
-	parser.add_argument('--average', dest='average', help='averageExplorer mode',action="store_true", default=False)
-	parser.add_argument('--shadow', dest='shadow', help='shadowDraw mode', action="store_true", default=False)
 	args = parser.parse_args()
 	return args
 
@@ -53,7 +51,6 @@ if __name__ == '__main__':
 			output_width=args.image_size,
 			output_height=args.image_size,
 			batch_size=args.batch_size,
-			sample_num=args.batch_size,
 			z_dim=args.dimz,
 			dataset_name=args.model_name,
 			checkpoint_dir=args.checkpoint)
@@ -65,8 +62,7 @@ if __name__ == '__main__':
 			sess,
 			output_width=args.image_size,
 			output_height=args.image_size,
-			batch_size=args.batch_size,
-			sample_num=args.batch_size,
+			batch_size=1,
 			z_dim=args.dimz,
 			dataset_name=args.model_name,
 			checkpoint_dir=args.checkpoint)
@@ -80,8 +76,7 @@ if __name__ == '__main__':
 												 
 	# initialize application
 	app = QApplication(sys.argv)
-	window = gui_design.GUIDesign(opt_engine, win_size=args.win_size, img_size=args.image_size, topK=args.top_k,
-								  model_name=args.model_name, useAverage=args.average, shadow=args.shadow)
+	window = gui_design.GUIDesign(opt_engine, win_size=args.win_size, img_size=args.image_size, topK=args.top_k, model_name=args.model_name)
 	#app.setStyleSheet(qdarkstyle.load_stylesheet(pyside=False))  # comment this if you do not like dark stylesheet
 	app.setWindowIcon(QIcon('logo.png'))  # load logo
 	window.setWindowTitle('Interactive GAN')
