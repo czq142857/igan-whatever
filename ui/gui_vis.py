@@ -3,7 +3,6 @@ import cv2
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
-from . import save_result
 from lib import utils
 
 
@@ -29,7 +28,6 @@ class GUI_VIS(QWidget):
 		self.setFixedSize(self.winWidth, self.winHeight)
 		self.opt_engine = opt_engine
 		self.frame_id = 0
-		self.sr = save_result.SaveResult(model_name=model_name)
 
 	def save(self):
 		self.sr.cache_result(ims=self.ims, visIms=self.vis_results)

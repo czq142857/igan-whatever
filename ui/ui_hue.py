@@ -2,7 +2,7 @@ import numpy as np
 import cv2
 
 
-class UIColor:
+class UIHue:
 	def __init__(self, img_size, width, scale):
 		self.img_size = img_size
 		self.scale = float(scale)
@@ -26,7 +26,6 @@ class UIColor:
 			for j in range(width):
 				if hsvmask[i][j][2]>20:
 					hsv[i][j][0] = hsvmask[i][j][0]
-					hsv[i][j][1] = hsvmask[i][j][1]
 		return cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
 
 	def update_width(self, d):

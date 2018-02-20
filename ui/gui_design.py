@@ -16,6 +16,8 @@ class GUIDesign(QWidget):
 		vbox = QVBoxLayout()
 
 		self.drawWidgetBox = QGroupBox()
+		self.drawWidgetBox.setFlat(True)
+		self.drawWidgetBox.setStyleSheet('QGroupBox:title { subcontrol-origin: margin; subcontrol-position: top center; padding-left: 1000px; padding-right: 1000px; }')
 		self.drawWidgetBox.setTitle('Drawing Pad')
 		vbox_t = QVBoxLayout()
 		vbox_t.addWidget(self.drawWidget)
@@ -35,6 +37,8 @@ class GUIDesign(QWidget):
 		self.bBrush.setToolTip('Change the color of a specific region')
 		self.bColor= QRadioButton("Color")
 		self.bColor.setToolTip('Change the color while preserving lightness')
+		self.bHue= QRadioButton("Hue")
+		self.bHue.setToolTip('Change the hue while preserving lightness')
 		self.bLiquify = QRadioButton("Liquify")
 		self.bLiquify.setToolTip('Warp a specific region')
 		self.bBrush.toggle()
@@ -42,9 +46,11 @@ class GUIDesign(QWidget):
 		bGroup = QButtonGroup(self)
 		bGroup.addButton(self.bBrush)
 		bGroup.addButton(self.bColor)
+		bGroup.addButton(self.bHue)
 		bGroup.addButton(self.bLiquify)
 		bhbox.addWidget(self.bBrush)
 		bhbox.addWidget(self.bColor)
+		bhbox.addWidget(self.bHue)
 		bhbox.addWidget(self.bLiquify)
 
 		self.colorPush  = QPushButton()  # to visualize the selected color
@@ -59,6 +65,8 @@ class GUIDesign(QWidget):
 		hbox = QHBoxLayout()
 		hbox.addLayout(vbox)
 		self.visWidgetBox = QGroupBox()
+		self.visWidgetBox.setFlat(True)
+		self.visWidgetBox.setStyleSheet('QGroupBox:title { subcontrol-origin: margin; subcontrol-position: top center; padding-left: 1000px; padding-right: 1000px; }')
 		self.visWidgetBox.setTitle('Candidate Results')
 		vbox_t = QVBoxLayout()
 		self.visWidget = gui_vis.GUI_VIS(opt_engine=opt_engine, grid_size=None, topK=topK, nps=win_size, model_name=model_name)
@@ -79,12 +87,18 @@ class GUIDesign(QWidget):
 		self.bReset.setToolTip('Restore the system')
 		self.bNext = QPushButton("&Next")
 		self.bNext.setToolTip('Fix current result and add noise')
+		self.bLoad = QPushButton("&Load")
+		self.bLoad.setToolTip('Load image')
+		self.bSave = QPushButton("&Save")
+		self.bSave.setToolTip('Save current image')
 
 		chbox = QHBoxLayout()
 		chbox.addWidget(self.bNext)
 		chbox.addWidget(self.bPlay)
 		chbox.addWidget(self.bUndo)
 		chbox.addWidget(self.bReset)
+		chbox.addWidget(self.bLoad)
+		chbox.addWidget(self.bSave)
 
 
 		vbox2.addLayout(chbox)
@@ -110,6 +124,7 @@ class GUIDesign(QWidget):
 		self.visWidget.update()
 		self.bBrush.toggled.connect(self.drawWidget.use_brush)
 		self.bColor.toggled.connect(self.drawWidget.use_color)
+		self.bHue.toggled.connect(self.drawWidget.use_hue)
 		self.bLiquify.toggled.connect(self.drawWidget.use_liquify)
 		self.colorPush.clicked.connect(self.drawWidget.change_color)
 		self.drawWidget.update_color.connect(self.colorPush.setStyleSheet)
@@ -117,10 +132,10 @@ class GUIDesign(QWidget):
 		self.bUndo.clicked.connect(self.undo)
 		self.bReset.clicked.connect(self.reset)
 		self.bNext.clicked.connect(self.next)
-		self.start_t = time.time()
+		self.bLoad.clicked.connect(self.load)
+		self.bSave.clicked.connect(self.save)
 
 	def reset(self):
-		self.start_t = time.time()
 		self.opt_engine.reset()
 		self.drawWidget.reset()
 		self.visWidget.reset()
@@ -133,22 +148,26 @@ class GUIDesign(QWidget):
 		self.drawWidget.undo()
 
 	def next(self):
-		print('time spent = %3.3f' % (time.time()-self.start_t))
 		self.drawWidget.next()
+
+	def load(self):
+		self.drawWidget.load()
+
+	def save(self):
+		self.drawWidget.save()
 
 	def keyPressEvent(self, event):
 		if event.key() == Qt.Key_R:
 		   self.reset()
-
 		if event.key() == Qt.Key_Q:
-			print('time spent = %3.3f' % (time.time()-self.start_t))
 			self.close()
-
 		if event.key() == Qt.Key_U:
 			self.undo()
-
 		if event.key() == Qt.Key_P:
 			self.play()
-
 		if event.key() == Qt.Key_N:
 			self.next()
+		if event.key() == Qt.Key_L:
+			self.load()
+		if event.key() == Qt.Key_S:
+			self.save()

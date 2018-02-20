@@ -6,8 +6,10 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from lib import utils
 # from scipy import ndimage
+from .load_save import load_image, save_image
 from .ui_brush import UIBrush
 from .ui_color import UIColor
+from .ui_hue import UIHue
 from .ui_liquify import UILiquify
 
 class GUIDraw(QWidget):
@@ -33,6 +35,7 @@ class GUIDraw(QWidget):
 		self.type = 'brush'
 		self.uiBrush = UIBrush(img_size=img_size, width=self.brushWidth, scale=self.scale)
 		self.uiColor = UIColor(img_size=img_size, width=self.brushWidth, scale=self.scale)
+		self.uiHue = UIHue(img_size=img_size, width=self.brushWidth, scale=self.scale)
 		self.uiLiquify = UILiquify(img_size=img_size, width=self.brushWidth*2, scale=self.scale)
 		self.img_size = img_size
 		self.move(win_size, win_size)
@@ -53,6 +56,8 @@ class GUIDraw(QWidget):
 			self.current_img = self.uiBrush.update(self.origin_img, self.points, self.color)
 		if self.type is 'color':
 			self.current_img = self.uiColor.update(self.origin_img, self.points, self.color)
+		if self.type is 'hue':
+			self.current_img = self.uiHue.update(self.origin_img, self.points, self.color)
 		if self.type is 'liquify':
 			self.current_img = self.uiLiquify.update(self.origin_img, self.points)
 
@@ -75,6 +80,7 @@ class GUIDraw(QWidget):
 		self.lastDraw = 0
 		self.uiBrush.reset()
 		self.uiColor.reset()
+		self.uiHue.reset()
 		self.uiLiquify.reset()
 		self.frame_id = self.num_frames-1
 		self.image_id = 0
@@ -118,6 +124,8 @@ class GUIDraw(QWidget):
 				ca = QColor(c.red(), c.green(), c.blue(), 127)
 			if self.type is 'color':
 				ca = QColor(c.red(), c.green(), c.blue(), 127)
+			if self.type is 'hue':
+				ca = QColor(c.red(), c.green(), c.blue(), 127)
 			if self.type is 'liquify':
 				ca = QColor(0, 0, 0, 255)
 
@@ -134,6 +142,8 @@ class GUIDraw(QWidget):
 			self.brushWidth = self.uiBrush.update_width(d)
 		if self.type is 'color':
 			self.brushWidth = self.uiColor.update_width(d)
+		if self.type is 'hue':
+			self.brushWidth = self.uiHue.update_width(d)
 		if self.type is 'liquify':
 			self.brushWidth = self.uiLiquify.update_width(d)
 		self.update()
@@ -161,6 +171,7 @@ class GUIDraw(QWidget):
 		if event.button() == Qt.LeftButton and self.isPressed:
 			self.uiBrush.reset()
 			self.uiColor.reset()
+			self.uiHue.reset()
 			self.uiLiquify.reset()
 			del self.points[:]
 			self.isPressed = False
@@ -183,6 +194,7 @@ class GUIDraw(QWidget):
 		self.lastDraw = 0
 		self.uiBrush.reset()
 		self.uiColor.reset()
+		self.uiHue.reset()
 		self.uiLiquify.reset()
 		self.set_image_id(0)
 		self.update_image_id.emit(0)
@@ -199,11 +211,27 @@ class GUIDraw(QWidget):
 		self.lastDraw = 0
 		self.uiBrush.reset()
 		self.uiColor.reset()
+		self.uiHue.reset()
 		self.uiLiquify.reset()
 		self.update_image_id.emit(self.image_id)
 		self.origin_img = self.opt_engine.get_image(self.image_id, self.frame_id)
 		self.current_img = np.copy(self.origin_img)
 		self.update()
+
+	def load(self):
+		image = load_image()
+		if (image is None):
+			print('Load failed')
+			return
+		image = cv2.resize(image, (self.current_img.shape[1], self.current_img.shape[0]))
+		self.current_img = image;
+		self.opt_engine.set_image(self.image_id, self.frame_id, self.current_img)
+		self.origin_img = np.copy(self.current_img)
+		self.update_image_id.emit(self.image_id)
+		self.opt_engine.dirty = True
+
+	def save(self):
+		save_image(self.current_img);
 
 	def morph_seq(self):
 		self.frame_id=0
@@ -229,6 +257,13 @@ class GUIDraw(QWidget):
 		self.color = self.prev_color
 		self.update_color.emit(('background-color: %s' % self.color.name()))
 		self.brushWidth = self.uiColor.update_width(0)
+		self.update()
+
+	def use_hue(self):
+		self.type = 'hue'
+		self.color = self.prev_color
+		self.update_color.emit(('background-color: %s' % self.color.name()))
+		self.brushWidth = self.uiHue.update_width(0)
 		self.update()
 
 	def use_liquify(self):
